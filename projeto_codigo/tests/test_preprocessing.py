@@ -50,10 +50,13 @@ def test_geometric_features_are_finite_and_ratio_is_physical() -> None:
 
     features = geometric_features(segmentation)
 
-    assert features.shape == (16,)
+    assert features.shape == (19,)
     assert np.all(np.isfinite(features))
     assert 0 < features[2] < 1
     assert np.isclose(features[3], features[2] ** 2, rtol=0.15)
+    assert np.isclose(features[15], 63, atol=10)
+    assert features[16] < 5
+    assert np.isclose(features[17], 0.6, atol=0.1)
 
 
 def test_geometry_detects_independent_centers_and_outer_border_deviation() -> None:

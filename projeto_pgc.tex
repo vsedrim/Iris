@@ -83,7 +83,7 @@
 {\LARGE \textbf{Iridologia sob Lentes Científicas:}}\\[0.2cm]
 {\Large \textbf{Avaliação Crítica com Aprendizado de Máquina}}\\[0.3cm]
 {\large \textit{Da hipótese iridológica aos biomarcadores médicos da íris:\\
-vascularização, diâmetro pupilar e morfologia para inferência de DM2}}\\[0.3cm]
+vascularização, diâmetro pupilar, espessura clínica e morfologia na investigação do DM2}}\\[0.3cm]
 \rule{\textwidth}{0.4pt}\\[1.2cm]
 
 \vfill
@@ -113,16 +113,18 @@ identificadores reais. Como a base legada não contém esses identificadores e n
 que a classe positiva corresponde especificamente a DM2, seus resultados são apresentados somente
 como uma análise provisória dos rótulos fornecidos.
 
-O projeto também define o conjunto de metadados necessário para uma avaliação clínica, incorpora
-ResNet, EfficientNet e \emph{Vision Transformers}, acrescenta descritores morfológicos e cromáticos e
-mede correlatos de vascularização em imagens RGB. Esses correlatos não substituem medidas obtidas por
-AS-OCTA. O objetivo desta etapa é verificar a viabilidade e a estabilidade das medidas, controlar
-fontes de viés e registrar as condições necessárias para uma avaliação posterior com dados clínicos
-verificáveis.
+As contribuições do PGC são organizadas em três eixos: classificação por correlatos de
+vascularização; classificação por diâmetro pupilar e espessura da íris; e caracterização morfológica
+da coroa pupilar e iridiana por desvios em relação à circunferência ajustada, sulcos, colaretes e
+proxies de criptas. Descritores clássicos permanecem como controle experimental. Em fotografias RGB,
+o diâmetro é medido em pixels ou como razão pupila/íris, e a largura anular é apenas aparente. A
+espessura anatômica da íris não pode ser obtida dessas fotografias e deve provir de medição clínica
+externa, com a respectiva fonte registrada. Os correlatos vasculares em RGB também não substituem
+medidas obtidas por AS-OCTA.
 
 \vspace{0.3cm}
 \noindent\textbf{Palavras-chave:} diabetes mellitus tipo 2; íris; vascularização; diâmetro pupilar;
-visão computacional; aprendizado de máquina; aprendizado profundo; biomarcadores oculares.
+espessura da íris; morfologia; visão computacional; aprendizado de máquina; biomarcadores oculares.
 \end{abstract}
 
 \tableofcontents
@@ -164,8 +166,9 @@ redução da densidade vascular da íris em pessoas com DM2, inclusive sem retin
 \citep{Zhou2025SciRep}, e avaliam a identificação da vasculatura iridiana
 \citep{Roberts2017CER,Zett2018Graefes}. Também há relatos de alterações no diâmetro pupilar e na
 espessura da íris \citep{Cui2024BMC,Thakar2025Eye}. A partir desses resultados, o projeto pergunta se
-fotografias convencionais contêm correlatos mensuráveis dessas grandezas, ainda que sem a informação
-vascular fornecida pela AS-OCTA.
+fotografias convencionais contêm correlatos mensuráveis de vascularização, diâmetro e morfologia e se
+medidas clínicas externas de espessura acrescentam informação à classificação. A fotografia não
+fornece a informação vascular da AS-OCTA nem a espessura anatômica da íris.
 
 O estudo é exploratório. Ele examina a viabilidade técnica dessas medidas, sua sensibilidade às
 condições de aquisição e o desempenho dos classificadores sob um protocolo reproduzível. O arquivo
@@ -183,8 +186,9 @@ incluindo o segmento anterior --- pode manifestar repercussões sistêmicas do D
 diabética, por exemplo, não se restringe à retina: estudos com AS-OCTA evidenciam rarefação vascular
 na íris \citep{Zhou2025SciRep}, enquanto disautonomia diabética afeta a dinâmica pupilar
 \citep{Thakar2025Eye}. Surge, então, uma oportunidade de pesquisa distinta da iridologia: investigar
-se \textbf{grandezas oculares clinicamente reconhecidas} associadas ao DM2 podem ser \emph{aproximadas}
-a partir de imagens convencionais por visão computacional, e se tais aproximações carregam sinal útil.
+se \textbf{grandezas oculares clinicamente reconhecidas} associadas ao DM2 podem ser representadas por
+medidas de imagem ou, no caso da espessura anatômica, integradas a partir de medição clínica externa,
+e se essas variáveis carregam sinal útil.
 
 A avaliação deve verificar se o desempenho observado é reprodutível, permanece estável entre
 reamostragens, não decorre de artefatos de aquisição ou vazamento de dados e admite interpretação
@@ -194,28 +198,22 @@ quando houver identificadores reais.
 \subsection{Problema central}
 \emph{É viável aproximar, a partir de fotografias convencionais da íris e por meio de visão
 computacional e aprendizado de máquina, biomarcadores oculares clinicamente associados ao DM2 ---
-vascularização, diâmetro pupilar e morfologia iridiana --- de modo reprodutível, generalizável e
-controlado contra viés?}
+correlatos de vascularização, diâmetro pupilar e morfologia iridiana --- e integrar medidas clínicas
+externas de espessura da íris de modo reprodutível e controlado contra viés?}
 
 \subsection{Questões específicas}
 \begin{enumerate}
-    \item \textbf{Viabilidade de extração de medidas oculares.} É possível extrair, de imagens
-    RGB, correlatos confiáveis de (a)~vascularização/textura vascular, (b)~diâmetro pupilar e
-    geometria da coroa pupilar, e (c)~morfologia iridiana (criptas, sulcos, colarete), apesar das
-    limitações de fotografias não obtidas por AS-OCTA?
+    \item \textbf{Vascularização.} Proxies de estruturas vasculares em RGB sustentam classificação
+    estável entre \textit{folds}, sementes e perturbações fotométricas, sem serem confundidos com
+    pigmentação, reflexos ou oclusões?
 
-    \item \textbf{Validade e estabilidade do sinal.} Em um conjunto com diagnóstico de DM2 e
-    identificadores reais, o desempenho preditivo permanece consistente entre \textit{folds},
-    sementes e perturbações fotométricas quando o particionamento é feito por pessoa?
+    \item \textbf{Diâmetro e espessura.} O diâmetro pupilar em pixels ou relativo e a espessura da
+    íris medida externamente permitem classificar os grupos quando diagnóstico, identidade, escala,
+    iluminação e fonte da medição são verificáveis?
 
-    \item \textbf{Contribuição das arquiteturas profundas.} Arquiteturas como ResNet, EfficientNet e
-    \emph{Vision Transformers}, sob \emph{transfer learning} e particionamento por pessoa,
-    agregam capacidade discriminativa real em relação à linha de base clássica, ou apenas ampliam o
-    risco de sobreajuste e de captura de artefatos?
-
-    \item \textbf{Interpretabilidade morfológica e cromática.} Descritores morfológicos (desvios em
-    relação à circunferência ajustada, estruturas locais) e cromáticos (HSV e LAB) fornecem ganho
-    consistente e clinicamente plausível, ou se comportam como ruído sob múltiplas comparações?
+    \item \textbf{Morfologia.} O contorno angular do colarete, seus desvios em relação à
+    circunferência ajustada, curvatura e harmônicos, assim como sulcos e proxies de criptas, podem ser
+    medidos de forma reprodutível e validados contra anotações humanas?
 \end{enumerate}
 
 % ====================== Objetivos ======================
@@ -223,37 +221,34 @@ controlado contra viés?}
 
 \subsection{Objetivo geral}
 Investigar se fotografias convencionais da íris permitem estimar correlatos de vascularização,
-diâmetro pupilar e morfologia iridiana e pupilar associados ao DM2, utilizando visão computacional e
-aprendizado de máquina. A avaliação deve controlar fontes de viés e vazamento de dados e medir a
-capacidade de generalização.
+diâmetro pupilar e morfologia iridiana e pupilar associados ao DM2 e se medidas clínicas externas de
+espessura da íris contribuem para a classificação. A avaliação utiliza visão computacional e
+aprendizado de máquina, controla fontes de viés e vazamento de dados e mede a capacidade de
+generalização.
 
 \subsection{Objetivos específicos}
 \begin{itemize}
     \item \textbf{Revisão médica e computacional.} Sintetizar a evidência clínica sobre alterações
     oculares do segmento anterior no DM2 (vascularização, diâmetro pupilar, espessura/morfologia) e os
-    métodos de visão computacional aplicáveis à extração dessas grandezas a partir de imagens RGB.
+    métodos de visão computacional aplicáveis a proxies vasculares, diâmetro e morfologia em imagens
+    RGB, distinguindo-os das medições clínicas externas de espessura.
 
-    \item \textbf{Estudo de viabilidade das medidas oculares.} Implementar e avaliar técnicas de
-    visão computacional para estimar correlatos de vascularização (realce e densidade de estruturas
-    vasculares/texturais), diâmetro pupilar e geometria da coroa pupilar, documentando limites e
-    incertezas dessas estimativas em imagens convencionais.
+    \item \textbf{Eixo 1 --- Classificação por vascularização.} Implementar e avaliar proxies RGB de
+    estruturas vasculares, incluindo \emph{vesselness}, máscara, esqueleto, ramificações e contraste
+    vermelho-verde, documentando sua estabilidade e sua diferença em relação à AS-OCTA.
 
-    \item \textbf{Eixo 1 --- Base de trabalho e proveniência clínica.} Consolidar uma base com rótulo
-    clínico de DM2 verificável, identificador real de indivíduo, lateralidade e fonte do diagnóstico.
+    \item \textbf{Eixo 2 --- Classificação por diâmetro e espessura.} Avaliar o diâmetro pupilar em
+    pixels e a razão pupila/íris, além de incorporar a espessura anatômica da íris somente quando ela
+    for fornecida por medição clínica externa com fonte identificada.
+
+    \item \textbf{Eixo 3 --- Caracterização morfológica.} Quantificar o contorno angular do colarete
+    por desvios em relação à circunferência ajustada, harmônicos e curvatura, além de contar e medir
+    sulcos e produzir proxies de criptas, validando-os contra anotações humanas.
+
+    \item \textbf{Proveniência clínica.} Consolidar uma base com rótulo verificável de DM2,
+    identificador real de indivíduo, lateralidade, fonte do diagnóstico e fonte das medidas clínicas.
     Enquanto esses metadados não estiverem disponíveis, restringir o arquivo legado à validação
-    operacional e à análise exploratória de rótulos reportados, sem alegar particionamento por pessoa.
-
-    \item \textbf{Eixo 2 --- Arquiteturas profundas.} Incorporar ResNet, EfficientNet e \emph{Vision
-    Transformers} sob \emph{transfer learning} e, após a obtenção dos identificadores reais,
-    particionamento por pessoa, comparando-as com a linha de base clássica sob as mesmas divisões.
-
-    \item \textbf{Eixo 3 --- Caracterização morfológica.} Quantificar a morfologia da íris e da coroa
-    pupilar por meio de desvios em relação à circunferência ajustada e da identificação de estruturas
-    (criptas, sulcos, colaretes), conectando-as ao diâmetro pupilar.
-
-    \item \textbf{Eixo 4 --- Descritores cromáticos.} Introduzir descritores baseados em momentos de
-    cor e histogramas regionais nos espaços HSV e LAB, avaliando seu ganho marginal sobre os
-    descritores existentes.
+    operacional e à análise exploratória de rótulos reportados.
 
     \item \textbf{Integração e avaliação crítica.} Integrar as extensões ao fluxo computacional,
     permitindo comparações diretas com múltiplas métricas (acurácia, sensibilidade,
@@ -319,7 +314,7 @@ da íris (íris total e setores nasal e temporal), com associações a sexo, ín
 glicemia. Trabalhos metodológicos demonstram a viabilidade de identificar e estadiar a vasculatura da
 íris por AS-OCTA \citep{Roberts2017CER} e de compará-la à angiofluoresceinografia \citep{Zett2018Graefes}.
 Embora a AS-OCTA não esteja disponível em fotografias convencionais, esses estudos motivam a
-investigação de correlatos texturais e cromáticos da vascularização em imagens RGB. Métodos de
+investigação de correlatos de estruturas lineares e de contraste vermelho-verde em imagens RGB. Métodos de
 aprendizado de máquina também foram aplicados à análise quantitativa de angiografias da íris
 \citep{Zhu2026QIMS}.
 
@@ -333,24 +328,18 @@ pupilares significativamente menores} em diabéticos, com correlação a parâme
 retiniana. Esses achados sustentam o \textbf{diâmetro pupilar e a dinâmica pupilar} como biomarcadores
 candidatos, potencialmente estimáveis por visão computacional a partir da segmentação pupila/íris.
 
-\subsection{Descritores cromáticos}
-O projeto quantifica a cor da íris com momentos de cor (média, desvio-padrão e assimetria) e
-histogramas regionais nos espaços HSV e LAB. Esses espaços separam componentes de luminância e
-crominância e permitem testar se os descritores permanecem estáveis sob mudanças de iluminação e
-contraste.
+Fotografias frontais permitem estimar o diâmetro em pixels, a razão pupila/íris e a largura anular
+aparente. Elas não fornecem a espessura anatômica da íris. Neste projeto, essa espessura só pode ser
+usada quando medida externamente, por exemplo, por AS-OCT ou UBM, e acompanhada da fonte da medição.
 
-\subsection{Visão computacional e aprendizado profundo}
+\subsection{Visão computacional e classificação clássica}
 A normalização \emph{rubber sheet} \citep{Daugman2004} mapeia a região anelar da íris para coordenadas
 polares (raio~$\times$~ângulo), facilitando a extração de descritores comparáveis entre amostras.
 Sobre essa representação aplicam-se descritores clássicos --- intensidades de pixel, \emph{Local Binary
 Patterns} \citep{Ojala2002LBP} e descritores de Haralick derivados da matriz de coocorrência
-\citep{Haralick1973Texture}. Também são avaliadas arquiteturas de aprendizado profundo ---
-ResNet \citep{He2016ResNet}, EfficientNet \citep{Tan2019EfficientNet} e \emph{Vision Transformers}
-\citep{Dosovitskiy2021ViT} ---, ajustadas por \emph{transfer learning}
-\citep{Pan2010TransferLearning}. A aplicação dessas técnicas à oftalmologia inclui a detecção de
-retinopatia diabética em retinografias \citep{Gulshan2016JAMA}. Modelos com maior capacidade também
-podem aprender atalhos relacionados à aquisição \citep{Zech2018}; por isso, a avaliação por pessoa
-depende de identificadores reais.
+\citep{Haralick1973Texture}. Esses descritores formam o baseline de controle para os três eixos. A
+avaliação utiliza regressão logística, SVM, \emph{Random Forest}, MLP e AdaBoost sob divisões agrupadas
+quando identificadores reais estiverem disponíveis.
 
 % ====================== Trabalhos Relacionados ======================
 \section{Trabalhos Relacionados}
@@ -416,16 +405,15 @@ Antes das extensões de modelagem, conduz-se um estudo de viabilidade para estim
 biomarcadores médicos (Figura~\ref{fig:pipeline}):
 
 \begin{itemize}
-    \item \textbf{Diâmetro pupilar e coroa pupilar.} A partir da segmentação pupila/íris, estima-se o
-    raio/diâmetro pupilar relativo (normalizado pelo diâmetro da íris, para mitigar variações de
-    escala/câmera) e a \textbf{razão pupila/íris}. A borda pupilar é ajustada a uma circunferência e
-    quantificam-se os desvios radiais (Eixo~3).
-    \item \textbf{Correlatos de vascularização.} Investigam-se realces de estruturas finas (filtros do
-    tipo Frangi/\emph{vesselness}, realce de cor nos canais vermelho e verde e descritores de textura)
-    como medidas indiretas de densidade vascular. Fotografias RGB não substituem AS-OCTA; a análise
-    mede a viabilidade e a estabilidade desses correlatos, sem afirmar equivalência clínica.
-    \item \textbf{Morfologia iridiana.} Densidade de criptas, sulcos e ondulação do colarete são
-    estimadas sobre a íris normalizada.
+    \item \textbf{Vascularização (Eixo~1).} Investigam-se realces de estruturas finas com
+    Frangi/\emph{vesselness}, máscara, esqueleto, ramificações e contraste vermelho-verde. Essas
+    medidas são proxies RGB e não substituem AS-OCTA.
+    \item \textbf{Diâmetro e espessura (Eixo~2).} A segmentação fornece diâmetro pupilar em pixels,
+    razão pupila/íris e largura anular aparente. A espessura anatômica da íris só é incorporada quando
+    provém de medição clínica externa com fonte registrada.
+    \item \textbf{Morfologia (Eixo~3).} O contorno angular do colarete e as bordas segmentadas são
+    comparados a circunferências ajustadas. Calculam-se desvios, harmônicos, curvatura, sulcos e
+    proxies de criptas, sujeitos a validação por anotações humanas.
 \end{itemize}
 
 As segmentações são submetidas a controle de qualidade antes da normalização: a borda pupilar deve
@@ -444,113 +432,127 @@ Falhas são registradas e excluídas, sem substituição silenciosa de medidas.
                  minimum height=0.8cm, text width=2.7cm, fill=green!6},
     arr/.style={-{Stealth[length=2mm]}, thick, gray!60!black}
 ]
-\node[box] (img) {Imagem RGB\\da íris};
+\node[box] (img) {Imagem RGB\\+ manifesto};
 \node[box, right=of img] (seg) {Segmentação\\íris + pupila};
 \node[box, right=of seg] (norm) {Normalização\\\emph{rubber sheet}};
-\node[box, right=of norm] (split) {Grupos por pessoa\\(IDs reais)};
+\node[box, right=of norm] (split) {Identidade, rótulo\\e fontes verificados};
 
-\node[feat, below=1.1cm of seg, xshift=-1.2cm] (med) {\textbf{Medidas oculares}\\diâmetro pupilar,
-coroa, vasc.\ (\emph{proxy})};
-\node[feat, right=of med] (classic) {\textbf{Clássicas}\\pixels, LBP, Haralick};
-\node[feat, right=of classic] (chrom) {\textbf{Cromáticas}\\momentos, HSV/LAB};
-\node[feat, right=of chrom] (deep) {\textbf{Profundas}\\ResNet, EfficientNet, ViT};
+\node[feat, below=1.1cm of img] (classic) {\textbf{Baseline}\\pixels, LBP, Haralick};
+\node[feat, right=of classic] (vascular) {\textbf{Eixo 1}\\proxy vascular RGB};
+\node[feat, right=of vascular] (geometry) {\textbf{Eixo 2}\\diâmetro + espessura clínica};
+\node[feat, right=of geometry] (morph) {\textbf{Eixo 3}\\colarete, sulcos, criptas};
 
-\node[box, below=1.1cm of classic, xshift=0.0cm, fill=orange!8, text width=3.2cm] (clf)
-{Classificação\\(LR, SVM, RF, MLP, \emph{deep})};
+\node[box, below=1.1cm of vascular, xshift=1.35cm, fill=orange!8, text width=3.4cm] (clf)
+{Classificação\\LR, SVM, RF, MLP, AdaBoost};
 \node[box, right=of clf, fill=orange!8, text width=3.4cm] (eval)
-{Avaliação\\Acc, Sens, Esp, Prec, F1\\+ robustez};
+{Avaliação agrupada\\Acc, Sens, Esp, Prec, F1\\+ estabilidade};
 
 \draw[arr] (img) -- (seg);
 \draw[arr] (seg) -- (norm);
 \draw[arr] (norm) -- (split);
-\draw[arr] (seg.south) to[out=-90,in=90] (med.north);
 \draw[arr] (norm.south) to[out=-90,in=90] (classic.north);
-\draw[arr] (norm.south) to[out=-90,in=90] (chrom.north);
-\draw[arr] (split.south) to[out=-90,in=90] (deep.north);
-\draw[arr] (med.south) to[out=-90,in=90] (clf.north);
-\draw[arr] (classic.south) -- (clf.north);
-\draw[arr] (chrom.south) to[out=-90,in=90] (clf.north);
-\draw[arr] (deep.south) to[out=-90,in=90] (eval.north);
+\draw[arr] (norm.south) to[out=-90,in=90] (vascular.north);
+\draw[arr] (seg.south) to[out=-90,in=90] (geometry.north);
+\draw[arr] (norm.south) to[out=-90,in=90] (morph.north);
+\draw[arr] (classic.south) to[out=-90,in=180] (clf.west);
+\draw[arr] (vascular.south) -- (clf.north);
+\draw[arr] (geometry.south) -- (clf.north);
+\draw[arr] (morph.south) to[out=-90,in=0] (clf.east);
+\draw[arr] (split.south) to[out=-90,in=90] (eval.north);
 \draw[arr] (clf) -- (eval);
 \end{tikzpicture}
 }%
-\caption{Visão geral do fluxo proposto. O processamento de base (azul) alimenta quatro grupos de
-descritores (verde), incluindo medidas oculares indiretas, e a avaliação dos classificadores
-(laranja).}
+\caption{Fluxo do PGC. O baseline clássico controla a comparação; os três eixos contribuem com
+proxies vasculares, medidas de diâmetro e espessura clínica externa e descritores morfológicos. A
+avaliação depende de identidade, rótulos e fontes verificáveis.}
 \label{fig:pipeline}
 \end{figure}
 
-\subsection{Eixo 1 --- Base de trabalho e proveniência clínica}
+\subsection{Base de trabalho e proveniência clínica}
 O arquivo legado recebido contém 108 linhas reportadas como controle e 88 como diabetes, mas não
 inclui identificadores reais, lateralidade, fonte do diagnóstico ou confirmação do subtipo DM2. A
-auditoria removeu 73 cópias exatas, restando 123 imagens únicas (66 controles reportados e 57 casos
-reportados como diabetes). Portanto, essa base não dispensa a recuperação de metadados nem permite
-afirmar isolamento por pessoa. O protocolo definitivo exige um manifesto
-com identificador real, lateralidade, rótulo binário e fonte do diagnóstico; todas as imagens do mesmo
-indivíduo são mantidas no mesmo grupo.
+auditoria removeu 73 cópias exatas, restando 123 imagens únicas: 66 controles reportados e 57 casos
+reportados como diabetes. A deduplicação elimina cópias idênticas, mas não demonstra que linhas
+distintas pertencem a pessoas diferentes.
 
-Enquanto o manifesto clínico não estiver disponível, o arquivo legado é usado somente em uma análise
-provisória, mediante autorização explícita na linha de comando. A Figura~\ref{fig:baseline-preliminar} resume a acurácia dos cinco
-classificadores sobre o conjunto completo de descritores, em três sementes e cinco \textit{folds} por
-semente. O melhor resultado nessa configuração foi do \emph{Random Forest} (acurácia média 0,829),
-enquanto a melhor ablação foi AdaBoost com descritores clássicos (0,840). Esses valores demonstram a
-execução do protocolo; não demonstram associação específica com DM2 nem
-generalização entre pessoas reais. A validação em conjunto independente permanece necessária.
-A publicação associada ao arquivo também foi retratada pelo IEEE
-\citep{RetractionNotice2023}; por isso, o conjunto não é usado como evidência científica, e qualquer
-uso futuro depende de esclarecimento com o custodiante dos dados sobre proveniência, licença,
-consentimento e implicações da retratação.
+O protocolo definitivo exige identificador real, lateralidade, rótulo binário e fonte do diagnóstico.
+Todas as imagens do mesmo indivíduo devem permanecer no mesmo grupo. A publicação associada ao
+arquivo foi retratada pelo IEEE \citep{RetractionNotice2023}; portanto, o conjunto legado serve apenas
+à validação operacional e à análise provisória dos rótulos fornecidos. Proveniência, licença,
+consentimento e implicações da retratação ainda precisam ser esclarecidos com o custodiante.
 
-\begin{figure}[H]
-    \centering
-    \begin{tikzpicture}
-    \begin{axis}[
-        width=0.92\textwidth,
-        height=7.5cm,
-        ybar=2pt,
-        bar width=9pt,
-        ylabel={Acurácia},
-        xlabel={Classificador},
-        ymin=0.55, ymax=1.0,
-        ytick={0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95,1.0},
-        yticklabel style={font=\scriptsize},
-        symbolic x coords={AdaBoost, MLP, RF, SVM, LR},
-        xtick=data,
-        xticklabel style={font=\small},
-        legend style={at={(0.5,1.18)}, anchor=north, legend columns=1, font=\small, draw=gray!50},
-        grid=major,
-        major grid style={gray!20},
-        enlarge x limits=0.18,
-        nodes near coords,
-        nodes near coords style={font=\tiny, rotate=90, anchor=west, xshift=0pt, yshift=1pt},
-        every node near coord/.append style={/pgf/number format/fixed, /pgf/number format/precision=2},
-    ]
-    \addplot[fill=green!50!black!40, draw=green!60!black] coordinates {
-        (AdaBoost,0.8239) (MLP,0.7941) (RF,0.8293) (SVM,0.7811) (LR,0.7753)
-    };
-    \addlegendentry{Todos os descritores}
-    \end{axis}
-    \end{tikzpicture}
-    \caption{Linha de base provisória sobre 123 imagens únicas do arquivo legado: acurácia
-    média de cinco classificadores com todos os descritores, em três sementes e cinco \textit{folds}
-    por semente. Os grupos são IDs sintéticos por linha, não identificadores reais de pessoa, e a
-    classe positiva significa diabetes reportado, sem confirmação do subtipo DM2.}
-    \label{fig:baseline-preliminar}
-\end{figure}
+\subsection{Eixo 1 --- Classificação por vascularização}
+O grupo vascular implementado calcula \emph{vesselness} de Frangi sobre o escurecimento do canal
+verde, densidade da máscara, densidade do esqueleto, densidade de ramificações, contraste
+vermelho-verde e estatísticas auxiliares. Essas características representam respostas de imagem a
+estruturas lineares. Elas não identificam vasos de forma validada e não equivalem a medidas por
+AS-OCTA.
 
-\subsection{Eixo 2 --- Arquiteturas profundas}
-Avaliam-se ResNet, EfficientNet e \emph{Vision Transformers} sob \emph{transfer learning} (pesos
-pré-treinados em ImageNet), com ajuste fino das camadas superiores. O particionamento por pessoa será
-aplicado quando houver identificadores reais. A comparação com a linha de base clássica verifica se
-essas arquiteturas acrescentam informação ou apenas aumentam o sobreajuste.
+Durante o recesso, o grupo vascular foi executado sobre as 123 imagens únicas da base legada com três
+sementes e cinco \textit{folds}. Os IDs e os rótulos permaneceram não verificados. Todos os modelos
+foram treinados na condição original; as variantes fotométricas foram usadas somente no teste. A
+Regressão Logística foi o melhor modelo na condição original. A Tabela~\ref{tab:recesso-vascular}
+apresenta os resultados desse modelo.
+
+\begin{table}[H]
+\centering
+\caption{Resultados exploratórios da Regressão Logística com o proxy vascular RGB. Valores em média
+$\pm$ desvio-padrão para três sementes e cinco \textit{folds}.}
+\label{tab:recesso-vascular}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Condição} & \textbf{Acurácia} & \textbf{F1} & \textbf{Sensibilidade} & \textbf{Especificidade} \\
+\midrule
+Original          & $0{,}7613 \pm 0{,}0693$ & $0{,}7453 \pm 0{,}0800$ & $0{,}7641 \pm 0{,}1089$ & $0{,}7582 \pm 0{,}0740$ \\
+Brilho reduzido   & $0{,}7371 \pm 0{,}0596$ & -- & -- & -- \\
+Brilho elevado    & $0{,}7477 \pm 0{,}0686$ & -- & -- & -- \\
+Contraste reduzido& $0{,}6013 \pm 0{,}0701$ & -- & -- & -- \\
+Contraste elevado & $0{,}6281 \pm 0{,}0697$ & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A queda nas condições de contraste evidencia instabilidade fotométrica do fluxo atual. Os valores
+não demonstram associação com DM2, generalização por pessoa nem validade vascular. O plano de
+continuidade prevê auditoria visual e \emph{ground truth} de vasos, comparação entre Frangi, CLAHE,
+\emph{black-hat}, Gabor e detectores de linhas, máscaras de reflexos, pálpebras e cílios, calibração de
+limiares somente no treino, ablação, teste sintético e avaliação em conjunto anotado. Os detalhes e os
+critérios de saída estão registrados em \texttt{docs/RECESSO\_VASCULAR.md}.
+
+\subsection{Eixo 2 --- Classificação por diâmetro da pupila e espessura da íris}
+A segmentação de imagens RGB fornece o diâmetro pupilar em pixels, o diâmetro da íris em pixels, a
+razão entre esses diâmetros e a largura anular aparente. Essas medidas dependem de escala, iluminação,
+distância e perspectiva. A razão reduz a dependência de escala, mas não elimina as demais fontes de
+variação.
+
+A fotografia RGB não mede a espessura anatômica da íris. A variável
+\texttt{iris\_thickness\_mm} deve ser obtida externamente, por exemplo, por AS-OCT ou UBM. O código
+atual aceita \texttt{pupil\_diameter\_mm} e \texttt{iris\_thickness\_mm} como colunas opcionais do
+manifesto e exige \texttt{ocular\_measurement\_source} quando qualquer uma delas está presente. A
+fonte e os valores positivos são preservados nos dados preparados.
+
+Essas características serão avaliadas como entradas de classificação somente em uma base com
+identidade, diagnóstico, aquisição e fonte das medições verificáveis. Como a base legada contém apenas
+faixas normalizadas e não preserva os contornos ou raios originais, ela não sustenta resultados para
+este eixo.
 
 \subsection{Eixo 3 --- Caracterização morfológica da íris e da coroa pupilar}
-A morfologia é quantificada por \textbf{desvios em relação à circunferência ajustada}
-(Figura~\ref{fig:morfologia}). Ajusta-se uma circunferência à borda pupilar (e à fronteira
-entre íris e esclera) e mede-se, em cada ângulo~$\theta$, o desvio radial
-$\delta(\theta) = r_{\text{borda}}(\theta) - r_{\text{circ}}(\theta)$. Estatísticas de $\delta(\theta)$
-(amplitude, energia espectral, número de lóbulos) descrevem a regularidade da coroa pupilar e da borda
-pupilar, relacionando-se ao tônus muscular e à inervação autonômica.
+A implementação representa o contorno angular do colarete na íris normalizada como
+$r_{\mathrm{colarete}}(\theta)$. O contorno é localizado por resposta de gradiente radial e suavizado
+periodicamente. Em relação à circunferência de referência, calculam-se o desvio RMS, o desvio-padrão e
+o desvio máximo absoluto. Também são extraídos o segundo harmônico, a curvatura RMS e a força da borda
+do colarete.
+
+Os sulcos são aproximados por mínimos locais proeminentes de $r_{\mathrm{colarete}}(\theta)$, dos
+quais se registram contagem, profundidade média e profundidade máxima. A detecção de \emph{blobs}
+escuros fornece proxies de densidade e raio de criptas. Separadamente, os contornos segmentados da
+pupila e da íris são comparados a circunferências ajustadas para calcular desvios radiais, energia de
+alta frequência e número de lóbulos (Figura~\ref{fig:morfologia}).
+
+Essas saídas descrevem a imagem processada, mas ainda não validam estruturas anatômicas. O contorno do
+colarete, os sulcos e as criptas devem ser comparados a anotações humanas representativas antes de
+qualquer interpretação morfológica ou clínica.
 
 \begin{figure}[H]
 \centering
@@ -578,18 +580,12 @@ pupilar, relacionando-se ao tônus muscular e à inervação autonômica.
     \draw[->, gray] (0.7,0) arc[start angle=0, end angle=30, radius=0.7];
     \node[gray, font=\tiny] at (15:0.92) {$\theta$};
 \end{tikzpicture}
-\caption{Esquema da caracterização morfológica (Eixo~3). A borda pupilar real (vermelho) é comparada a
-uma circunferência ajustada (tracejada); o desvio radial
-$\delta(\theta)=r_{\text{borda}}(\theta)-r_{\text{circ}}(\theta)$ e a geometria do colarete (pontilhado)
-descrevem a regularidade da coroa pupilar.}
+\caption{Esquema da caracterização morfológica (Eixo~3). As bordas segmentadas são comparadas a
+circunferências de referência por desvios radiais. Na íris normalizada, o contorno do colarete é
+representado por $r_{\mathrm{colarete}}(\theta)$ e fornece os descritores de desvio, harmônico,
+curvatura e sulcos.}
 \label{fig:morfologia}
 \end{figure}
-
-\subsection{Eixo 4 --- Descritores cromáticos}
-Sobre a íris normalizada, extraem-se \textbf{momentos de cor} (média, desvio-padrão e assimetria por
-canal) e \textbf{histogramas regionais} nos espaços \textbf{HSV} e \textbf{LAB}, globalmente e por
-setores. Avalia-se o ganho marginal desses descritores sobre os descritores clássicos, bem como sua
-estabilidade sob transformações fotométricas (contraste/iluminação).
 
 \subsection{Particionamento, métricas e robustez}
 Mantêm-se os controles metodológicos de base: (i)~particionamento por pessoa como
@@ -636,13 +632,13 @@ atividade prevista.}
  & M1 & M2 & M3 & M4 & M5 & M6 & M7 & M8 & M9 & M10 & M11 & M12 \\
 \midrule
 Revisão médica e computacional            & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           &           &           &            &            &            \\
-Estudo de viabilidade (medidas oculares) &       & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           &           &            &            &            \\
-Consolidação do fluxo computacional &  &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           &            &            &            \\
-Eixo 3 --- Caracterização morfológica     &           &           &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &            &            &            \\
-Eixo 4 --- Descritores cromáticos         &           &           &           &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &            &            &            \\
+Auditoria de proveniência e dos rótulos   & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           &           &            &            &            \\
+Consolidação do baseline clássico         &           & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           &            &            &            \\
+Eixo 1 --- Classificação por vascularização &       &           & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &            &            &            \\
 Relatório/Defesa de PGC I                 &           &           &           &           &           & $\bullet$ &           &           &           &            &            &            \\
-Eixo 2 --- Arquiteturas profundas         &           &           &           &           &           &           & $\bullet$ & $\bullet$ & $\bullet$ &            &            &            \\
-Eixo 1 --- Base de trabalho rotulada para DM2 &       &           &           &           &           &           &           & $\bullet$ & $\bullet$ & $\bullet$  &            &            \\
+Eixo 2 --- Diâmetro e espessura clínica   &           &           &           & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$  &            &            \\
+Eixo 3 --- Caracterização morfológica     &           &           &           & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$  &            &            \\
+Validação por anotações humanas           &           &           &           &           &           &           & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$  &            &            \\
 Análises de robustez e integração final   &           &           &           &           &           &           &           &           & $\bullet$ & $\bullet$  & $\bullet$  &            \\
 Redação, revisão e defesa de PGC II       &           &           &           &           &           &           &           &           &           & $\bullet$  & $\bullet$  & $\bullet$  \\
 \bottomrule
@@ -655,14 +651,15 @@ Redação, revisão e defesa de PGC II       &           &           &          
 
 O projeto tem caráter exploratório e prevê os seguintes resultados:
 \begin{itemize}
-    \item um \textbf{diagnóstico de viabilidade} sobre extrair correlatos de vascularização, diâmetro
-    pupilar e morfologia iridiana de imagens RGB convencionais, com limites e incertezas explicitados;
-    \item uma \textbf{reavaliação da base legada}, limitada aos rótulos reportados, com as medidas
-    oculares, os novos descritores e os testes de robustez, seguida por uma avaliação clínica quando
-    houver confirmação de DM2 e identificadores reais;
-    \item uma \textbf{comparação} entre descritores clássicos, morfológicos, cromáticos e
-    arquiteturas profundas, sob os mesmos \textit{folds} e, quando possível, particionamento por
-    pessoa;
+    \item uma \textbf{avaliação do proxy vascular RGB}, com auditoria visual, estabilidade
+    fotométrica, ablações e limites explícitos em relação à AS-OCTA;
+    \item uma \textbf{avaliação do diâmetro pupilar} em pixels e como razão pupila/íris, além da
+    classificação com espessura anatômica somente quando houver medição clínica externa e fonte
+    documentada;
+    \item uma \textbf{caracterização morfológica} do colarete, dos sulcos e das criptas por medidas
+    reprodutíveis e comparação com anotações humanas;
+    \item uma \textbf{reavaliação da base legada}, limitada aos rótulos reportados e aos eixos que
+    seus dados permitem executar, mantendo o baseline clássico como controle;
     \item um fluxo computacional que registra dados, parâmetros, divisões e resultados e que pode ser
     reaplicado quando uma base clinicamente verificável estiver disponível.
 \end{itemize}
