@@ -107,6 +107,9 @@ class IrisDataset:
     source_image_hashes: np.ndarray = field(
         default_factory=lambda: np.empty(0, dtype="<U1")
     )
+    ocular_measurement_sources: np.ndarray = field(
+        default_factory=lambda: np.empty(0, dtype="<U1")
+    )
     geometry: np.ndarray = field(default_factory=lambda: np.empty((0, 0), dtype=np.float32))
     geometry_names: np.ndarray = field(default_factory=lambda: np.empty(0, dtype="<U1"))
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -131,6 +134,7 @@ class IrisDataset:
             "diagnosis_verified": self.diagnosis_verified,
             "source_image_paths": self.source_image_paths,
             "source_image_hashes": self.source_image_hashes,
+            "ocular_measurement_sources": self.ocular_measurement_sources,
         }.items():
             if value.size and (value.ndim != 1 or len(value) != sample_count):
                 raise DatasetValidationError(
@@ -163,6 +167,13 @@ class IrisDataset:
                 raise DatasetValidationError(
                     f"manifest-based dataset lacks provenance: {missing_provenance}"
                 )
+        has_clinical_geometry = bool(
+            {"pupil_diameter_mm", "iris_thickness_mm"} & set(self.geometry_names.tolist())
+        )
+        if has_clinical_geometry and len(self.ocular_measurement_sources) != sample_count:
+            raise DatasetValidationError(
+                "clinical ocular measurements require one source per sample"
+            )
         if self.diagnosis_verified.size:
             expected_status = (
                 VERIFIED_CLINICAL_LABEL_STATUS
@@ -228,6 +239,7 @@ class IrisDataset:
             diagnosis_verified=self.diagnosis_verified,
             source_image_paths=self.source_image_paths,
             source_image_hashes=self.source_image_hashes,
+            ocular_measurement_sources=self.ocular_measurement_sources,
             geometry=self.geometry,
             geometry_names=self.geometry_names,
             metadata_json=np.asarray(metadata_json),
@@ -248,6 +260,7 @@ class IrisDataset:
             "diagnosis_verified": self.diagnosis_verified,
             "source_image_path": self.source_image_paths,
             "source_image_sha256": self.source_image_hashes,
+            "ocular_measurement_source": self.ocular_measurement_sources,
         }.items():
             if values.size:
                 manifest_data[name] = values
@@ -276,6 +289,7 @@ class IrisDataset:
                 diagnosis_verified=optional_array("diagnosis_verified"),
                 source_image_paths=optional_array("source_image_paths"),
                 source_image_hashes=optional_array("source_image_hashes"),
+                ocular_measurement_sources=optional_array("ocular_measurement_sources"),
                 geometry=archive["geometry"],
                 geometry_names=archive["geometry_names"],
                 metadata=json.loads(embedded_metadata_json),

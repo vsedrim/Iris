@@ -20,23 +20,21 @@ def textured_dataset() -> IrisDataset:
 
 
 def test_all_image_feature_families_are_finite_and_named() -> None:
-    table = extract_feature_table(
-        textured_dataset(), ("classic", "color", "vascular", "morphology")
-    )
+    table = extract_feature_table(textured_dataset(), ("classic", "vascular", "morphology"))
 
     assert table.values.shape[0] == 4
     assert table.values.shape[1] == len(table.names)
     assert np.all(np.isfinite(table.values))
-    assert set(table.groups) == {"classic", "color", "vascular", "morphology"}
+    assert set(table.groups) == {"classic", "vascular", "morphology"}
     assert any("haralick" in name for name in table.names)
     assert any("collarette" in name for name in table.names)
     assert any("vesselness" in name for name in table.names)
 
 
-def test_photometric_variant_preserves_schema_and_changes_values() -> None:
+def test_photometric_variant_preserves_vascular_schema_and_changes_values() -> None:
     dataset = textured_dataset()
-    original = extract_feature_table(dataset, ("color",), variant="original")
-    darker = extract_feature_table(dataset, ("color",), variant="brightness_low")
+    original = extract_feature_table(dataset, ("vascular",), variant="original")
+    darker = extract_feature_table(dataset, ("vascular",), variant="brightness_low")
 
     np.testing.assert_array_equal(original.names, darker.names)
     assert not np.allclose(original.values, darker.values)

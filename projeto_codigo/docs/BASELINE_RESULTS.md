@@ -1,74 +1,61 @@
-# Exploratory Classical Baseline
+# Resultados exploratórios do PGC
 
-Status: complete exploratory run  
-Date: 2026-08-09  
-Dataset: bundled `Data.zip`, `personBase_invert`, unverified row grouping, exact-copy deduplication
+**Status:** execução exploratória concluída  
+**Data da execução:** 2026-08-09  
+**Base:** `Data.zip`, leiaute `personBase_invert`, grupos de linha não verificados e deduplicação por
+cópia exata
 
-## Protocol
+## Protocolo
 
-The run used 123 unique normalized iris images: 66 reported controls and 57 reported-diabetic
-samples. It evaluated five models, five feature sets, five photometric conditions, three seeds, and
-five folds. This produced:
+A execução utilizou 123 imagens normalizadas únicas da íris: 66 controles reportados e 57 amostras
+reportadas como diabetes. Foram usados cinco classificadores, três sementes e cinco *folds* por
+semente. Os modelos foram ajustados somente com a condição original; as perturbações fotométricas
+foram aplicadas apenas ao teste.
 
-| Artifact | Rows | Audit result |
-|---|---:|---|
-| Fold-level metrics | 1,875 | Complete |
-| Sample predictions | 46,125 | Complete |
-| Fold assignments | 369 | Complete |
-| Missing or duplicate assignments | 0 | Pass |
-| Synthetic row groups assigned across folds | 0 | Pass |
-| Missing or duplicate predictions | 0 | Pass |
+A configuração gerada registra hashes, versões dos pacotes, parâmetros e limitações da base. Nenhum
+grupo sintético de linha cruzou os *folds*, mas os IDs reais das pessoas não estão disponíveis. Esse
+controle não comprova isolamento por indivíduo. A execução também registra autorizações separadas
+para identidade e rótulos clínicos não verificados.
 
-All models trained on original features. Photometric variants were applied only to test-fold
-features. The generated run configuration records source hashes, package versions, parameters, and
-dataset limitations. Zero row groups crossed folds, but source subject IDs are unavailable, so this
-does not prove person-based isolation. The run records separate explicit overrides for unverified
-identity and unverified clinical labels.
+## Baseline clássico
 
-## Original Image Results
+Os resultados abaixo preservam os controles clássicos pertinentes ao PGC na condição original.
 
-The ten highest mean accuracies under the unmodified test images were:
+| Modelo | Características | Acurácia | F1 | Sensibilidade | Especificidade |
+|---|---|---:|---:|---:|---:|
+| AdaBoost | Clássicas | 0,840 | 0,821 | 0,795 | 0,879 |
+| *Random Forest* | Clássicas | 0,819 | 0,797 | 0,784 | 0,849 |
 
-| Rank | Model | Feature set | Accuracy | F1 | Sensitivity | Specificity |
-|---:|---|---|---:|---:|---:|---:|
-| 1 | AdaBoost | Classic | 0.840 | 0.821 | 0.795 | 0.879 |
-| 2 | Random Forest | All | 0.829 | 0.807 | 0.773 | 0.879 |
-| 3 | AdaBoost | All | 0.824 | 0.809 | 0.808 | 0.839 |
-| 4 | Random Forest | Classic | 0.819 | 0.797 | 0.784 | 0.849 |
-| 5 | Random Forest | Color | 0.807 | 0.779 | 0.743 | 0.864 |
-| 6 | MLP | Color | 0.802 | 0.786 | 0.797 | 0.808 |
-| 7 | MLP | All | 0.794 | 0.774 | 0.773 | 0.814 |
-| 8 | Logistic Regression | Morphology | 0.789 | 0.781 | 0.813 | 0.769 |
-| 9 | Logistic Regression | Color | 0.784 | 0.764 | 0.774 | 0.795 |
-| 10 | SVM | All | 0.781 | 0.754 | 0.738 | 0.819 |
+O melhor resultado desse baseline usou somente descritores clássicos. Ele constitui um controle para
+os eixos de contribuição, não uma estimativa de desempenho clínico em DM2.
 
-The best original result used classical descriptors alone. Combining every feature family did not
-improve the best score. This supports ablation-based interpretation rather than assuming that a larger
-feature vector is better.
+## Morfologia
 
-## Photometric Robustness
+Na execução exploratória do grupo `morphology`, a regressão logística obteve acurácia 0,789, F1
+0,781, sensibilidade 0,813 e especificidade 0,769 na condição original.
 
-The largest accuracy loss was 0.327 for Random Forest with color features under reduced contrast:
-0.807 on original images and 0.481 after perturbation. SVM color features lost 0.292, and logistic
-regression color features lost 0.276 under the same condition.
+Esse grupo inclui o contorno angular do colarete em $r(\theta)$, desvios RMS, padrão e máximo,
+segundo harmônico, curvatura, contagem e profundidade de sulcos e proxies de criptas. O resultado não
+valida essas medidas como descritores anatômicos: o contorno, os sulcos e as criptas ainda precisam
+ser comparados a anotações humanas representativas.
 
-This sensitivity is evidence that color-based conclusions depend strongly on acquisition conditions.
-It should be treated as a central limitation, not as a secondary implementation detail.
+## Vascularização
 
-## Deep Learning Execution Check
+No recorte vascular do recesso, a regressão logística foi o melhor modelo na condição original, com
+acurácia 0,7613 ± 0,0693. As condições de contraste reduziram a acurácia e evidenciaram instabilidade
+fotométrica do proxy atual.
 
-ResNet-18 transfer learning with ImageNet weights completed on the real dataset for two folds and one
-epoch. EfficientNet-B0 and ViT-B/16 construction passed automated tests with the installed TorchVision
-API. The machine has a CPU-only PyTorch build and no CUDA device.
+O protocolo, as demais métricas, os cinco cenários fotométricos e o plano de validação estão em
+[RECESSO_VASCULAR.md](RECESSO_VASCULAR.md). O descritor é um proxy de *vesselness* em RGB, não uma
+medida por AS-OCTA.
 
-The one-epoch ResNet run is an execution check. Its metrics are not a scientific result. The declared
-deep protocol requires all three architectures, five folds, three seeds, fixed full epoch count, and
-all robustness conditions on suitable compute.
+## Interpretação
 
-## Interpretation
+Estes resultados substituem o uso direto da acurácia histórica próxima de 0,92 porque o arquivo
+legado continha 73 linhas duplicadas entre 196 linhas e a avaliação antiga não demonstrava separação
+por pessoa. A análise atual compara diabetes reportado e controle reportado; ela não confirma o
+subtipo DM2. IDs reais, verificação clínica dos rótulos, metadados de aquisição e uma coorte
+independente permanecem indisponíveis.
 
-These results supersede direct use of the preliminary 0.92 accuracy from the legacy script because
-the legacy archive contained 73 exact duplicate rows and the old evaluation did not enforce grouped
-folds through the classifier API. The current baseline is a provisional reported-diabetic-versus-
-control analysis, not a verified DM2 result. Source subject IDs, clinical label verification,
-acquisition metadata, and an external cohort are unavailable.
+Os CSVs e demais resultados gerados são registros locais de execução e não são commitados no
+repositório versionado.

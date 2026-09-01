@@ -28,8 +28,8 @@ def feature_tables(dataset: IrisDataset) -> dict[str, FeatureTable]:
         [dataset.labels * 4 + person_signal / 100, person_signal, np.sin(person_signal)]
     ).astype(np.float32)
     common = {
-        "names": np.asarray(["classic_signal", "color_index", "vascular_wave"]),
-        "groups": np.asarray(["classic", "color", "vascular"]),
+        "names": np.asarray(["classic_signal", "morphology_index", "vascular_wave"]),
+        "groups": np.asarray(["classic", "morphology", "vascular"]),
         "sample_ids": dataset.sample_ids,
     }
     return {

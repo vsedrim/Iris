@@ -58,30 +58,6 @@ def evaluate_command(args: argparse.Namespace) -> None:
     print(f"Wrote {len(result.metrics)} fold-level evaluations to {args.output}")
 
 
-def deep_command(args: argparse.Namespace) -> None:
-    try:
-        from iris_dm2.deep import run_deep_evaluation
-    except ImportError as error:
-        message = "Install deep-learning dependencies with: pip install -e '.[deep]'"
-        raise SystemExit(message) from error
-    result = run_deep_evaluation(
-        args.dataset,
-        args.output,
-        tuple(args.models),
-        tuple(args.variants),
-        tuple(args.seeds),
-        args.folds,
-        args.epochs,
-        args.batch_size,
-        args.learning_rate,
-        not args.no_pretrained,
-        args.device,
-        args.allow_unverified_identity,
-        args.allow_unverified_labels,
-    )
-    print(f"Wrote {len(result.metrics)} deep fold-level evaluations to {args.output}")
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="iris-dm2",
@@ -123,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--feature-groups",
         nargs="+",
         choices=FEATURE_GROUPS,
-        default=["classic", "color", "vascular", "morphology"],
+        default=["classic", "vascular", "morphology"],
     )
     extract_parser.add_argument(
         "--variants",
@@ -145,8 +121,8 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate_parser.add_argument(
         "--feature-sets",
         nargs="+",
-        default=["all", "classic", "color", "vascular", "morphology"],
-        help="Feature groups or '+' combinations, for example classic+color",
+        default=["all", "classic", "vascular", "morphology"],
+        help="Feature groups or '+' combinations, for example vascular+morphology",
     )
     evaluate_parser.add_argument(
         "--variants", nargs="+", choices=PHOTOMETRIC_VARIANTS, default=["original"]
@@ -165,38 +141,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluate_parser.set_defaults(handler=evaluate_command)
 
-    deep_parser = subparsers.add_parser(
-        "deep", help="Run grouped transfer-learning evaluation with the same split protocol"
-    )
-    deep_parser.add_argument("--dataset", type=Path, required=True)
-    deep_parser.add_argument("--output", type=Path, required=True)
-    deep_parser.add_argument(
-        "--models",
-        nargs="+",
-        choices=["resnet18", "efficientnet_b0", "vit_b_16"],
-        default=["resnet18", "efficientnet_b0", "vit_b_16"],
-    )
-    deep_parser.add_argument(
-        "--variants", nargs="+", choices=PHOTOMETRIC_VARIANTS, default=["original"]
-    )
-    deep_parser.add_argument("--seeds", nargs="+", type=int, default=[42, 123, 2025])
-    deep_parser.add_argument("--folds", type=int, default=5)
-    deep_parser.add_argument("--epochs", type=int, default=10)
-    deep_parser.add_argument("--batch-size", type=int, default=16)
-    deep_parser.add_argument("--learning-rate", type=float, default=1e-4)
-    deep_parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
-    deep_parser.add_argument("--no-pretrained", action="store_true")
-    deep_parser.add_argument(
-        "--allow-unverified-identity",
-        action="store_true",
-        help="Permit provisional row-based grouping when real subject IDs are unavailable",
-    )
-    deep_parser.add_argument(
-        "--allow-unverified-labels",
-        action="store_true",
-        help="Permit provisional evaluation when DM2/control labels are not verified",
-    )
-    deep_parser.set_defaults(handler=deep_command)
     return parser
 
 

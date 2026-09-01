@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "iris-dm2"
 version = "0.1.0"
-description = "Computer-vision experiments for DM2-associated iris measurements"
+description = "Medical iris biomarker experiments for DM2-associated measurements"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -19,10 +19,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-deep = [
-    "torch>=2.6,<3",
-    "torchvision>=0.21,<1",
-]
 dev = [
     "pytest>=8.3,<10",
     "pytest-cov>=6,<8",

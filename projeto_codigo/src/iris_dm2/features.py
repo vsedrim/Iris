@@ -6,14 +6,16 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from skimage.color import rgb2gray, rgb2hsv, rgb2lab
+from scipy.ndimage import gaussian_filter1d
+from scipy.signal import find_peaks
+from skimage.color import rgb2gray
 from skimage.feature import blob_log, graycomatrix, graycoprops, local_binary_pattern
 from skimage.filters import frangi, threshold_otsu
 from skimage.morphology import skeletonize
 
 from iris_dm2.data import DatasetValidationError, IrisDataset
 
-FEATURE_GROUPS = ("classic", "color", "vascular", "morphology", "geometry")
+FEATURE_GROUPS = ("classic", "vascular", "morphology", "geometry")
 PHOTOMETRIC_VARIANTS = (
     "original",
     "brightness_low",
@@ -138,51 +140,6 @@ def _classic_features(image_rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
     return values, pixel_names + lbp_names + haralick_names
 
 
-def _safe_skew(values: np.ndarray) -> float:
-    standard_deviation = float(values.std())
-    if standard_deviation < 1e-8:
-        return 0.0
-    centered = (values - values.mean()) / standard_deviation
-    return float(np.mean(centered**3))
-
-
-def _color_features(image_rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
-    resized, _ = _analysis_image(image_rgb)
-    image_float = resized.astype(np.float32) / 255.0
-    spaces = {
-        "hsv": (rgb2hsv(image_float), [(0, 1), (0, 1), (0, 1)]),
-        "lab": (rgb2lab(image_float), [(0, 100), (-128, 127), (-128, 127)]),
-    }
-    values: list[float] = []
-    names: list[str] = []
-    sectors = [("global", slice(None))] + [
-        (f"sector_{index}", sector)
-        for index, sector in enumerate(np.array_split(np.arange(resized.shape[1]), 4))
-    ]
-    for space_name, (space, ranges) in spaces.items():
-        for channel in range(3):
-            flattened = space[:, :, channel].ravel()
-            values.extend([float(flattened.mean()), float(flattened.std()), _safe_skew(flattened)])
-            names.extend(
-                [
-                    f"color_{space_name}_c{channel}_mean",
-                    f"color_{space_name}_c{channel}_std",
-                    f"color_{space_name}_c{channel}_skew",
-                ]
-            )
-        for region_name, columns in sectors:
-            region = space[:, columns, :]
-            for channel, value_range in enumerate(ranges):
-                counts, _ = np.histogram(region[:, :, channel], bins=16, range=value_range)
-                normalized = counts.astype(np.float32) / max(counts.sum(), 1)
-                values.extend(normalized.tolist())
-                names.extend(
-                    f"color_{space_name}_{region_name}_c{channel}_hist_{index:02d}"
-                    for index in range(16)
-                )
-    return np.asarray(values, dtype=np.float32), names
-
-
 def _vascular_features(image_rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
     resized, _ = _analysis_image(image_rgb)
     image = resized.astype(np.float32) / 255.0
@@ -241,18 +198,32 @@ def _angular_periodic_neighbor_count(mask: np.ndarray) -> np.ndarray:
 def _morphology_features(image_rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
     _, gray = _analysis_image(image_rgb)
     image = gray.astype(np.float32) / 255.0
-    radial_gradient = np.gradient(image, axis=0)
+    smoothed = cv2.GaussianBlur(image, (5, 5), 0)
+    radial_gradient = np.gradient(smoothed, axis=0)
     angular_gradient = np.gradient(image, axis=1)
     radial_energy = float(np.mean(radial_gradient**2))
     angular_energy = float(np.mean(angular_gradient**2))
-    radial_profile = np.mean(np.abs(radial_gradient), axis=1)
-    start = int(len(radial_profile) * 0.20)
-    stop = int(len(radial_profile) * 0.65)
-    collarette_profile = radial_profile[start:stop]
-    collarette_index = start + int(np.argmax(collarette_profile))
+    edge_magnitude = np.abs(radial_gradient)
+    start = int(image.shape[0] * 0.20)
+    stop = int(image.shape[0] * 0.65)
+    search_region = edge_magnitude[start:stop]
+    raw_collarette = start + np.argmax(search_region, axis=0)
+    collarette = gaussian_filter1d(raw_collarette.astype(np.float32), sigma=3, mode="wrap")
+    collarette_centered = collarette - collarette.mean()
+    radius_scale = max(float(collarette.mean()), 1.0)
+    normalized_deviation = collarette_centered / radius_scale
+    spectrum = np.abs(np.fft.rfft(normalized_deviation))
+    second_harmonic = float(spectrum[2] / max(len(normalized_deviation), 1))
+    curvature = np.roll(collarette, -1) - 2 * collarette + np.roll(collarette, 1)
+    prominence = max(float(collarette_centered.std()) * 0.5, 0.5)
+    sulci, properties = find_peaks(-collarette_centered, prominence=prominence, distance=5)
+    sulcus_depths = properties.get("prominences", np.asarray([], dtype=np.float32)) / radius_scale
+    columns = np.arange(image.shape[1])
+    selected_edges = edge_magnitude[
+        np.clip(np.rint(collarette).astype(int), 0, image.shape[0] - 1), columns
+    ]
     collarette_strength = float(
-        (radial_profile[collarette_index] - collarette_profile.mean())
-        / (collarette_profile.std() + 1e-6)
+        (selected_edges.mean() - search_region.mean()) / (search_region.std() + 1e-6)
     )
     blobs = blob_log(1.0 - image, min_sigma=1, max_sigma=4, num_sigma=4, threshold=0.08)
     blob_density = len(blobs) / image.size
@@ -262,7 +233,15 @@ def _morphology_features(image_rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
             radial_energy,
             angular_energy,
             angular_energy / (radial_energy + 1e-8),
-            collarette_index / len(radial_profile),
+            collarette.mean() / image.shape[0],
+            np.sqrt(np.mean(normalized_deviation**2)),
+            np.std(normalized_deviation),
+            np.max(np.abs(normalized_deviation)),
+            second_harmonic,
+            np.sqrt(np.mean(curvature**2)) / radius_scale,
+            len(sulci),
+            float(sulcus_depths.mean()) if len(sulcus_depths) else 0.0,
+            float(sulcus_depths.max()) if len(sulcus_depths) else 0.0,
             collarette_strength,
             blob_density,
             mean_blob_radius,
@@ -275,8 +254,16 @@ def _morphology_features(image_rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
         "morphology_radial_gradient_energy",
         "morphology_angular_gradient_energy",
         "morphology_orientation_energy_ratio",
-        "morphology_collarette_radius_proxy",
-        "morphology_collarette_strength_proxy",
+        "morphology_collarette_radius_normalized",
+        "morphology_collarette_deviation_rms",
+        "morphology_collarette_deviation_std",
+        "morphology_collarette_deviation_max_abs",
+        "morphology_collarette_second_harmonic",
+        "morphology_collarette_curvature_rms",
+        "morphology_sulcus_count",
+        "morphology_sulcus_mean_depth",
+        "morphology_sulcus_max_depth",
+        "morphology_collarette_edge_strength",
         "morphology_crypt_blob_density_proxy",
         "morphology_crypt_blob_radius_proxy",
         "morphology_radial_edge_mean",
@@ -287,7 +274,6 @@ def _morphology_features(image_rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
 
 EXTRACTORS: dict[str, Callable[[np.ndarray], tuple[np.ndarray, list[str]]]] = {
     "classic": _classic_features,
-    "color": _color_features,
     "vascular": _vascular_features,
     "morphology": _morphology_features,
 }

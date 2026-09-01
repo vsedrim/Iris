@@ -20,6 +20,7 @@ from iris_dm2.data import (
 
 MIN_SEGMENTATION_QUALITY = 0.30
 MIN_ANNULUS_WIDTH_PIXELS = 3.0
+CLINICAL_GEOMETRY_COLUMNS = ("pupil_diameter_mm", "iris_thickness_mm")
 
 GEOMETRY_FEATURE_NAMES = np.asarray(
     [
@@ -38,6 +39,9 @@ GEOMETRY_FEATURE_NAMES = np.asarray(
         "iris_radial_max_abs",
         "iris_border_high_frequency_energy",
         "iris_border_lobe_count",
+        "iris_annulus_width_mean_px",
+        "iris_annulus_width_std_px",
+        "iris_annulus_width_mean_normalized",
         "segmentation_quality",
     ]
 )
@@ -450,6 +454,26 @@ def geometric_features(segmentation: SegmentationResult) -> np.ndarray:
     if pupil_area <= 0 or iris_area <= pupil_area:
         raise DatasetValidationError("segmentation contours do not define valid annular areas")
     area_ratio = pupil_area / iris_area
+    angles = np.linspace(0, 2 * np.pi, 720, endpoint=False)
+    pupil_radii = _contour_radius_profile(
+        segmentation.pupil_contour, segmentation.pupil, angles
+    )
+    iris_radii = _contour_radius_profile(
+        segmentation.iris_contour, segmentation.iris, angles
+    )
+    pupil_points = np.column_stack(
+        [
+            segmentation.pupil.x + pupil_radii * np.cos(angles),
+            segmentation.pupil.y + pupil_radii * np.sin(angles),
+        ]
+    )
+    iris_points = np.column_stack(
+        [
+            segmentation.iris.x + iris_radii * np.cos(angles),
+            segmentation.iris.y + iris_radii * np.sin(angles),
+        ]
+    )
+    annulus_width = np.linalg.norm(iris_points - pupil_points, axis=1)
     return np.asarray(
         [
             2 * segmentation.pupil.radius,
@@ -461,6 +485,9 @@ def geometric_features(segmentation: SegmentationResult) -> np.ndarray:
             _contour_circularity(segmentation.iris_contour),
             *pupil_deviation,
             *iris_deviation,
+            float(annulus_width.mean()),
+            float(annulus_width.std()),
+            float(annulus_width.mean() / segmentation.iris.radius),
             segmentation.quality,
         ],
         dtype=np.float32,
@@ -506,6 +533,25 @@ def prepare_raw_manifest(manifest_path: Path, output_dir: Path) -> IrisDataset:
             "raw manifest diagnosis_verified values must be true or false"
         )
     manifest["diagnosis_verified"] = verification_values == "true"
+    clinical_geometry_columns = [
+        column for column in CLINICAL_GEOMETRY_COLUMNS if column in manifest.columns
+    ]
+    if clinical_geometry_columns:
+        if "ocular_measurement_source" not in manifest.columns:
+            raise DatasetValidationError(
+                "clinical ocular measurements require ocular_measurement_source"
+            )
+        manifest["ocular_measurement_source"] = (
+            manifest["ocular_measurement_source"].astype(str).str.strip()
+        )
+        if manifest["ocular_measurement_source"].str.lower().isin(
+            {"", "nan", "none", "null", "<na>"}
+        ).any():
+            raise DatasetValidationError("ocular_measurement_source cannot contain missing values")
+        for column in clinical_geometry_columns:
+            manifest[column] = pd.to_numeric(manifest[column], errors="raise")
+            if not np.all(np.isfinite(manifest[column])) or (manifest[column] <= 0).any():
+                raise DatasetValidationError(f"{column} must contain positive measurements")
     if "sample_id" in manifest:
         if manifest["sample_id"].isna().any():
             raise DatasetValidationError("raw manifest sample_id cannot be null")
@@ -523,6 +569,7 @@ def prepare_raw_manifest(manifest_path: Path, output_dir: Path) -> IrisDataset:
     diagnosis_verified: list[bool] = []
     source_image_paths: list[str] = []
     source_image_hashes: list[str] = []
+    ocular_measurement_sources: list[str] = []
     exclusions: list[dict[str, str]] = []
     base_dir = manifest_path.parent
 
@@ -538,7 +585,14 @@ def prepare_raw_manifest(manifest_path: Path, output_dir: Path) -> IrisDataset:
             image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
             segmentation = segment_iris(image_rgb)
             images.append(rubber_sheet_normalize(image_rgb, segmentation))
-            geometry.append(geometric_features(segmentation))
+            geometric_row = geometric_features(segmentation)
+            if clinical_geometry_columns:
+                clinical_values = np.asarray(
+                    [float(row[column]) for column in clinical_geometry_columns],
+                    dtype=np.float32,
+                )
+                geometric_row = np.concatenate([geometric_row, clinical_values])
+            geometry.append(geometric_row)
             labels.append(int(row["label"]))
             sample_ids.append(sample_id)
             person_ids.append(str(row["person_id"]))
@@ -547,6 +601,8 @@ def prepare_raw_manifest(manifest_path: Path, output_dir: Path) -> IrisDataset:
             diagnosis_verified.append(bool(row["diagnosis_verified"]))
             source_image_paths.append(str(image_path.resolve()))
             source_image_hashes.append(sha256_file(image_path))
+            if clinical_geometry_columns:
+                ocular_measurement_sources.append(str(row["ocular_measurement_source"]))
         except (DatasetValidationError, OSError, ValueError) as error:
             exclusions.append(
                 {"sample_id": sample_id, "image_path": str(image_path), "reason": str(error)}
@@ -564,8 +620,11 @@ def prepare_raw_manifest(manifest_path: Path, output_dir: Path) -> IrisDataset:
         diagnosis_verified=np.asarray(diagnosis_verified, dtype=np.bool_),
         source_image_paths=np.asarray(source_image_paths),
         source_image_hashes=np.asarray(source_image_hashes),
+        ocular_measurement_sources=np.asarray(ocular_measurement_sources),
         geometry=np.stack(geometry),
-        geometry_names=GEOMETRY_FEATURE_NAMES,
+        geometry_names=np.concatenate(
+            [GEOMETRY_FEATURE_NAMES, np.asarray(clinical_geometry_columns)]
+        ),
         metadata={
             "source_manifest": str(manifest_path.resolve()),
             "source_manifest_sha256": sha256_file(manifest_path),
@@ -575,12 +634,18 @@ def prepare_raw_manifest(manifest_path: Path, output_dir: Path) -> IrisDataset:
             "person_identity_status": PROVIDED_IDENTITY_STATUS,
             "clinical_label_status": (
                 VERIFIED_CLINICAL_LABEL_STATUS
-                if manifest["diagnosis_verified"].all()
+                if all(diagnosis_verified)
                 else UNVERIFIED_CLINICAL_LABEL_STATUS
             ),
             "positive_label_name": "dm2",
             "negative_label_name": "control",
-            "diagnosis_sources": sorted(manifest["diagnosis_source"].unique().tolist()),
+            "diagnosis_sources": sorted(set(diagnosis_sources)),
+            "clinical_geometry_columns": clinical_geometry_columns,
+            "ocular_measurement_sources": (
+                sorted(manifest["ocular_measurement_source"].unique().tolist())
+                if clinical_geometry_columns
+                else []
+            ),
             "segmentation_method": "dark-region pupil plus radial-gradient iris boundary",
             "normalization": "Daugman-style rubber sheet, 201x720 RGB",
         },
